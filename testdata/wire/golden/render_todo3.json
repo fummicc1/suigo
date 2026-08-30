@@ -1,0 +1,142 @@
+{
+  "type": "render",
+  "seq": 7,
+  "tree": {
+    "id": "0",
+    "type": "VStack",
+    "mods": [
+      {
+        "k": "spacing",
+        "v": 8
+      }
+    ],
+    "children": [
+      {
+        "id": "0/0",
+        "type": "HStack",
+        "children": [
+          {
+            "id": "0/0/0",
+            "type": "TextField",
+            "props": {
+              "commit": "submit",
+              "label": "新しいタスク",
+              "value": ""
+            }
+          },
+          {
+            "id": "0/0/1",
+            "type": "Button",
+            "props": {
+              "label": "追加"
+            }
+          }
+        ]
+      },
+      {
+        "id": "0/1",
+        "type": "Divider"
+      },
+      {
+        "id": "0/2",
+        "type": "List",
+        "children": [
+          {
+            "id": "0/2/0",
+            "type": "ForEach",
+            "children": [
+              {
+                "id": "todo-1",
+                "type": "HStack",
+                "children": [
+                  {
+                    "id": "todo-1/0",
+                    "type": "Toggle",
+                    "props": {
+                      "label": "牛乳を買う",
+                      "on": true
+                    }
+                  },
+                  {
+                    "id": "todo-1/1",
+                    "type": "Spacer"
+                  },
+                  {
+                    "id": "todo-1/2",
+                    "type": "Button",
+                    "props": {
+                      "label": "削除"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "todo-2",
+                "type": "HStack",
+                "children": [
+                  {
+                    "id": "todo-2/0",
+                    "type": "Toggle",
+                    "props": {
+                      "label": "本を返す",
+                      "on": false
+                    }
+                  },
+                  {
+                    "id": "todo-2/1",
+                    "type": "Spacer"
+                  },
+                  {
+                    "id": "todo-2/2",
+                    "type": "Button",
+                    "props": {
+                      "label": "削除"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "todo-3",
+                "type": "HStack",
+                "children": [
+                  {
+                    "id": "todo-3/0",
+                    "type": "Toggle",
+                    "props": {
+                      "label": "散歩する",
+                      "on": false
+                    }
+                  },
+                  {
+                    "id": "todo-3/1",
+                    "type": "Spacer"
+                  },
+                  {
+                    "id": "todo-3/2",
+                    "type": "Button",
+                    "props": {
+                      "label": "削除"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "0/3",
+        "type": "Text",
+        "props": {
+          "text": "3 件"
+        },
+        "mods": [
+          {
+            "k": "font",
+            "v": "caption"
+          }
+        ]
+      }
+    ]
+  }
+}

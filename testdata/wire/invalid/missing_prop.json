@@ -1,0 +1,21 @@
+{
+  "type": "render",
+  "seq": 1,
+  "tree": {
+    "id": "0",
+    "type": "VStack",
+    "children": [
+      {
+        "id": "0/0",
+        "type": "Text"
+      },
+      {
+        "id": "0/1",
+        "type": "Toggle",
+        "props": {
+          "label": "only label"
+        }
+      }
+    ]
+  }
+}

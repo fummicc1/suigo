@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # このジョブが Linux で通ること自体が NFR-2 / AC-6 の証明になる。
+  # macOS を必要とし始めたら、設計上の分離が壊れた合図である。
+  go-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - run: go vet ./...
+      - run: go vet -tags suigodev ./...
+      - name: go test (race + coverage)
+        run: go test -race -coverprofile=coverage.out ./...
+      - name: go test devserver (suigodev tag)
+        run: go test -race -tags suigodev ./devserver/
+      - run: go tool cover -func=coverage.out | tail -1
+
+  # パッケージは iOS 専用なので `swift test` は使えず、シミュレータ向けの xcodebuild で回す。
+  swift-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      # 製品が 2 つあるため、テストは自動生成の Suigo-Package スキームに紐付く。
+      - name: swift unit tests (Suigo-Package; no Go archive needed)
+        run: |
+          xcodebuild test -scheme Suigo-Package \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            | tail -30
+
+  # Release 成果物に dev トランスポートが混入していないことを機械的に確認する（AC-8 / RISK-4）。
+  release-guard:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: build Go c-archive (device slice only)
+        run: |
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          CLANG=$(xcrun --sdk iphoneos -f clang)
+          mkdir -p build/ios-arm64
+          CGO_ENABLED=1 GOOS=ios GOARCH=arm64 \
+            CC="$CLANG -target arm64-apple-ios17.0 -isysroot $SDK" \
+            CGO_CFLAGS="-target arm64-apple-ios17.0 -isysroot $SDK" \
+            CGO_LDFLAGS="-target arm64-apple-ios17.0 -isysroot $SDK" \
+            go build -buildmode=c-archive -o build/ios-arm64/libsuigo.a ./examples/counter/embedded
+      - name: build Suigo as Release (DEBUG undefined)
+        run: |
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          mkdir -p build/release
+          xcrun --sdk iphonesimulator swiftc -parse-as-library -emit-library -static \
+            -module-name Suigo -O -target arm64-apple-ios17.0-simulator -sdk "$SDK" -swift-version 6 \
+            Sources/Suigo/*.swift Sources/Suigo/NodeViews/*.swift -o build/release/libSuigo.a
+      - name: check release symbols
+        run: scripts/check-release-symbols.sh build/release/libSuigo.a build/ios-arm64/libsuigo.a

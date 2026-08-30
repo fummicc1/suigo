@@ -1,0 +1,148 @@
+# suigo
+
+**Write your iOS UI in Go. Render it as real SwiftUI.**
+
+suigo is an in-process, server-driven UI framework: Go builds a view tree, a thin Swift interpreter turns it into native SwiftUI views, and events flow back to Go. The Go side runs either as a separate process during development (**hot reload in under a second, state preserved**) or linked into the app as a C archive for release.
+
+> **Status: v0.1 — a working, measured prototype built as a learning project.**
+> Counter and TODO samples run on the iOS Simulator over both transports; hot reload is verified end-to-end.
+> This is not a production framework. Read *Scope* and *Known limitations* before depending on it.
+
+## Why this exists
+
+"Write iOS UI in Go" is not new — [Fyne](https://github.com/fyne-io/fyne) and [Gio](https://gioui.org/) already do it. They draw everything themselves, so the result is not native SwiftUI.
+
+The gap suigo fills is exactly one point: **the UI you write in Go is rendered as genuine SwiftUI views** — `Text`, `Button`, `List`, `Toggle`, `TextField` — with native look, accessibility, and OS behavior. Nothing else about suigo is unique; only this.
+
+The second thing suigo gives you is a development loop that SwiftUI Previews cannot: Previews are fast but run on mock data. `suigo dev` runs your **real Go logic with real state** and reflects a saved file in the simulator in ~0.9 s (p50), keeping your model across the reload.
+
+## How it works
+
+```
+   Development (dev transport)                 Release (embedded transport)
+   ───────────────────────────                 ──────────────────────────────
+   Go source ──fsnotify──▶ suigo dev           iOS app (single process)
+                             │ go build         ┌──────────────┐  suigo_send   ┌────────────┐
+                             ▼                  │ Swift        │──────────────▶│ Go         │
+                        Go child process        │ interpreter  │               │ (libsuigo.a│
+                             │ stdio            │              │◀──────────────│  c-archive)│
+                             ▼                  │ reader thread│ suigo_next_   └────────────┘
+   iOS Simulator ◀────TCP (stays connected)     └──────────────┘   frame (blocking)
+```
+
+Both transports carry the **same JSON frames**. The interpreter does not know which one it is on.
+
+- **Go** owns the model. `View(model) Node` is a pure function; `Store.Update` queues a mutation and the render loop applies it before the next frame (a single goroutine touches the model, so there is no data race by construction).
+- **Wire** is JSON. The full tree is sent on every render; SwiftUI's own `ForEach` identity diffing does the rest (measured: a one-node change in a 511-node tree re-evaluates 3 view bodies).
+- **Swift** is one `switch` from node type to SwiftUI view. Unknown node types render as `EmptyView` and log; unknown modifiers are ignored. Adding a node type never crashes an older host.
+- **Boundary** (release) is bytes only: Go mallocs a frame, Swift copies and frees it; Swift → Go is copied during the call. No function pointers cross the boundary, so Swift 6 strict concurrency has nothing to complain about.
+
+The wire contract is frozen in [`docs/wire-format.md`](docs/wire-format.md). Go and Swift share the fixtures in `testdata/wire/`.
+
+## Quick start
+
+Requirements: Go 1.26+, Xcode 26 / Swift 6.2+, iOS 17+ target. Only the iOS Simulator is supported for hot reload in v0.1.
+
+### 1. Write the UI in Go
+
+```go
+package ui
+
+type Model struct{ Count int }
+
+func init() { suigo.Register(Model{}, View) }
+
+func View(m Model, s *suigo.Store[Model]) suigo.Node {
+    return suigo.VStack(
+        suigo.Text(strconv.Itoa(m.Count)).Font(suigo.LargeTitle).ForegroundColor(suigo.Blue),
+        suigo.Button("+", func() { s.Update(func(m *Model) { m.Count++ }) }).Padding(12),
+    ).Spacing(16)
+}
+```
+
+### 2. Hot reload during development
+
+```sh
+go run ./cmd/suigo dev -port 7373 ./examples/counter/dev
+```
+
+In your host app, put `SuigoView.standard()` in the `WindowGroup` and set `SUIGO_DEV_PORT=7373` in the Xcode scheme's environment (Debug only). Save a Go file; the simulator updates and keeps its state.
+
+### 3. Ship it
+
+```sh
+scripts/build-xcframework.sh ./examples/counter/embedded build
+```
+
+Link `build/Suigo.xcframework` and the `SuigoEmbedded` SwiftPM product. The same `SuigoView.standard()` now talks to the Go runtime inside the app. Release builds contain no TCP code — verified by `scripts/check-release-symbols.sh`.
+
+See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo`.
+
+## What is in v0.1
+
+| Area | Contents |
+|---|---|
+| Nodes (14) | Text, Button, VStack, HStack, ZStack, Spacer, Divider, ScrollView, List, ForEach, TextField, Toggle, ProgressView, Image (SF Symbol / bundle asset) |
+| Modifiers | padding, font, foregroundColor, background, frame, cornerRadius, spacing, disabled, hidden, id |
+| State | `Store[M]` with queued mutations; snapshot/restore across hot reloads via JSON |
+| Transports | `suigo dev` (TCP, Debug only, localhost only) and embedded (C ABI, c-archive) |
+| Tooling | `suigo dev` with fsnotify, rebuild, state hand-off, build-failure overlay, `--metrics`; xcframework build script; release symbol guard |
+| Tests | Go: 80+ unit tests under `-race` (runs on Linux, no macOS needed); Swift: 40 unit tests against shared fixtures; XCUITests for both samples over both transports |
+
+## Measured numbers (iPhone 17 Pro Max simulator, iOS 26.5, Apple Silicon)
+
+| What | Result |
+|---|---|
+| Boundary cost (Go encode + Swift decode), 31 / 91 / 511 / 1000 nodes | 0.3 / 1.1 / 5.2 / 10.3 ms |
+| Dominant cost | Swift `JSONDecoder` (~8× the Go side) |
+| Re-render after a 1-node change, any tree size up to 511 | 3 view bodies, 0.8–3.8 ms |
+| Re-render when **every** node changes, 511 nodes | 24–28 ms (over the 16.7 ms frame budget) |
+| Practical tree size | **~300 nodes** per screen |
+| Hot reload, save → screen (p50 / max, 8 runs) | **877 ms / 1011 ms** (warm `go build` ≈ 0.3 s) |
+| C ABI leak check, 1000 frames of 32 KB | +1 MB with `suigo_free`, +48 MB without (the check works) |
+| App size added by the Go runtime + counter UI (Release, stripped, simulator arm64) | **0.4 MB → 2.9 MB (+2.6 MB)**; Debug bundle +2.8 MB |
+
+## Scope — what suigo deliberately does not do
+
+- **Not a SwiftUI API surface.** 14 node types. No NavigationStack, Picker, Sheet, Alert, Slider, Stepper, TabView, LazyVGrid (candidates for v0.2). Requests to "just add X" will be weighed against this list on purpose.
+- No rich animation or custom drawing.
+- No embedding into existing UIKit apps; v0.1 assumes a fresh SwiftUI host.
+- No remote image URLs or image bytes over the wire.
+- No Android. The boundary is designed so a Compose interpreter could be added, but none exists.
+- No Go-side diff engine. Full-tree send is measured to be sufficient at this scale; a diff will only be built if measurement says so.
+
+## Known limitations
+
+- **`golang/go#57651`** (open since 2023-01): iOS apps containing Go ≥ 1.18 can drop to ~5 fps **while a physical device is attached to Xcode** (not when detached, not with Instruments running). This affects development, not shipped apps. suigo's dev transport keeps Go out of the app process entirely during development, so the condition does not arise there. It has not yet been reproduced with the c-archive setup used here (needs a device).
+- **Practical limit ≈ 300 nodes.** Beyond that, a full-tree change exceeds the frame budget. Split screens or wait for v0.2.
+- **`suigo dev` has no authentication.** It listens on `127.0.0.1` only and is compiled out of Release. Do not expose it on a LAN; a device-side hot reload will need auth first.
+- **Hot-reload state hand-off is JSON.** Unexported fields are dropped; a renamed field falls back to its zero value with a warning overlay.
+- **Simulator only for hot reload** in v0.1.
+- **The simulator slice of the xcframework is arm64 only** (Apple Silicon). Build with a specific simulator destination or exclude x86_64; an Intel slice can be added to `scripts/build-xcframework.sh` if needed.
+
+## Compared to
+
+| | Native SwiftUI output | Go authoring | Hot reload with real logic | Notes |
+|---|---|---|---|---|
+| **suigo** | yes | yes | yes | 14 nodes, prototype |
+| Fyne / Gio | no (own renderer) | yes | – | mature, cross-platform |
+| Flutter + gomobile/FFI | no (own renderer) | logic only | yes | mature |
+| Kotlin Multiplatform + Compose | no | no | – | no Go |
+| Govinci | no iOS renderer yet (UIKit planned) | yes | – | JSON tree, Android only |
+| Go core + hand-written SwiftUI (the Tailscale way) | yes | logic only | Previews (mock data) | what suigo tries to replace |
+| Plain SwiftUI | yes | no | Previews (mock data) | often the right answer |
+
+If your UI is simple and you don't have a Go core to reuse, plain SwiftUI is the better tool.
+
+## Reference implementations this builds on
+
+- [tailscale/libtailscale](https://github.com/tailscale/libtailscale) — c-archive → xcframework build.
+- [bipa-app/swiftui-json-render](https://github.com/bipa-app/swiftui-json-render) — JSON → SwiftUI interpretation.
+- [grahms/govinci](https://github.com/grahms/govinci) — Go declarative DSL with a JSON tree.
+- [youngdynasty/go-swift](https://github.com/youngdynasty/go-swift) — cgo embedding in a Swift app.
+
+Design notes (Japanese) live in `docs/`. The wire contract in `docs/wire-format.md` is the source of truth for both sides.
+
+## License
+
+Apache-2.0. No CLA.

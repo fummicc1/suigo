@@ -1,0 +1,22 @@
+# 設計メモとスパイク（成果物ではなく作業記録）
+.tmp/
+
+# Go
+*.a
+*.o
+/build/
+
+# c-archive の生成物
+Suigo.xcframework/
+
+# Swift / SwiftPM
+.build/
+.swiftpm/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# macOS
+.DS_Store
+
+# xcodegen が生成する。project.yml が正
+*.xcodeproj/

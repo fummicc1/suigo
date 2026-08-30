@@ -1,0 +1,145 @@
+{
+  "type": "render",
+  "seq": 1,
+  "tree": {
+    "id": "0",
+    "type": "VStack",
+    "children": [
+      {
+        "id": "0/0",
+        "type": "Text",
+        "props": {
+          "text": "text"
+        }
+      },
+      {
+        "id": "0/1",
+        "type": "Button",
+        "props": {
+          "label": "button"
+        }
+      },
+      {
+        "id": "0/2",
+        "type": "HStack",
+        "props": {
+          "alignment": "top"
+        },
+        "children": [
+          {
+            "id": "0/2/0",
+            "type": "Text",
+            "props": {
+              "text": "in hstack"
+            }
+          }
+        ]
+      },
+      {
+        "id": "0/3",
+        "type": "ZStack",
+        "props": {
+          "alignment": "topLeading"
+        },
+        "children": [
+          {
+            "id": "0/3/0",
+            "type": "Text",
+            "props": {
+              "text": "in zstack"
+            }
+          }
+        ]
+      },
+      {
+        "id": "0/4",
+        "type": "Spacer"
+      },
+      {
+        "id": "0/5",
+        "type": "Divider"
+      },
+      {
+        "id": "0/6",
+        "type": "ScrollView",
+        "children": [
+          {
+            "id": "0/6/0",
+            "type": "Text",
+            "props": {
+              "text": "in scroll"
+            }
+          }
+        ]
+      },
+      {
+        "id": "0/7",
+        "type": "List",
+        "children": [
+          {
+            "id": "0/7/0",
+            "type": "ForEach",
+            "children": [
+              {
+                "id": "row-a",
+                "type": "Text",
+                "props": {
+                  "text": "row a"
+                }
+              },
+              {
+                "id": "row-b",
+                "type": "Text",
+                "props": {
+                  "text": "row b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "0/8",
+        "type": "TextField",
+        "props": {
+          "commit": "debounce:300",
+          "label": "field",
+          "value": "abc"
+        }
+      },
+      {
+        "id": "0/9",
+        "type": "Toggle",
+        "props": {
+          "label": "toggle",
+          "on": true
+        }
+      },
+      {
+        "id": "0/10",
+        "type": "ProgressView",
+        "props": {
+          "value": 0.42
+        }
+      },
+      {
+        "id": "0/11",
+        "type": "Image",
+        "props": {
+          "symbol": "star.fill"
+        }
+      },
+      {
+        "id": "0/12",
+        "type": "Image",
+        "props": {
+          "asset": "AppLogo"
+        }
+      },
+      {
+        "id": "0/13",
+        "type": "ProgressView"
+      }
+    ]
+  }
+}

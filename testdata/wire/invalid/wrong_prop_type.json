@@ -1,0 +1,12 @@
+{
+  "type": "render",
+  "seq": 1,
+  "tree": {
+    "id": "0",
+    "type": "Toggle",
+    "props": {
+      "label": "x",
+      "on": "yes"
+    }
+  }
+}

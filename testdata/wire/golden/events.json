@@ -1,0 +1,57 @@
+{
+  "frames": [
+    {
+      "type": "event",
+      "nodeID": "0/1",
+      "kind": "tap",
+      "payload": {
+        "t": "none"
+      }
+    },
+    {
+      "type": "event",
+      "nodeID": "0/8",
+      "kind": "commit",
+      "payload": {
+        "t": "string",
+        "v": "入力した値"
+      }
+    },
+    {
+      "type": "event",
+      "nodeID": "0/9",
+      "kind": "change",
+      "payload": {
+        "t": "bool",
+        "v": true
+      }
+    },
+    {
+      "type": "event",
+      "nodeID": "0/x",
+      "kind": "change",
+      "payload": {
+        "t": "int",
+        "v": 3
+      }
+    },
+    {
+      "type": "event",
+      "nodeID": "0/y",
+      "kind": "change",
+      "payload": {
+        "t": "double",
+        "v": 1.5
+      }
+    },
+    {
+      "type": "event",
+      "nodeID": "0/z",
+      "kind": "change",
+      "payload": {
+        "t": "index",
+        "v": 2
+      }
+    }
+  ]
+}

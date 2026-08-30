@@ -1,0 +1,21 @@
+{
+  "type": "render",
+  "seq": 1,
+  "tree": {
+    "id": "0",
+    "type": "Text",
+    "props": {
+      "text": "x"
+    },
+    "mods": [
+      {
+        "k": "glow",
+        "v": 1
+      },
+      {
+        "k": "padding",
+        "v": 8
+      }
+    ]
+  }
+}

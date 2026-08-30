@@ -1,0 +1,40 @@
+{
+  "frames": [
+    {
+      "type": "error",
+      "severity": "build",
+      "code": "build_failed",
+      "message": "./view.go:12:2: undefined: Tex"
+    },
+    {
+      "type": "error",
+      "severity": "runtime",
+      "code": "duplicate_id",
+      "message": "duplicate node ID \"todo-1\" (2 occurrences)"
+    },
+    {
+      "type": "error",
+      "severity": "runtime",
+      "code": "invalid_id",
+      "message": "explicit ID must not contain \"/\": got \"a/b\""
+    },
+    {
+      "type": "error",
+      "severity": "runtime",
+      "code": "handler_panic",
+      "message": "handler for 0/1 tap panicked: index out of range"
+    },
+    {
+      "type": "error",
+      "severity": "warning",
+      "code": "node_count_warning",
+      "message": "render tree has 412 nodes (practical limit is about 300)"
+    },
+    {
+      "type": "error",
+      "severity": "warning",
+      "code": "restore_failed",
+      "message": "restore failed, falling back to zero value"
+    }
+  ]
+}

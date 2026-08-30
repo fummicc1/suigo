@@ -1,0 +1,31 @@
+{
+  "type": "render",
+  "seq": 1,
+  "tree": {
+    "id": "0",
+    "type": "VStack",
+    "children": [
+      {
+        "id": "0/0",
+        "type": "Text",
+        "props": {
+          "text": "前は描かれる"
+        }
+      },
+      {
+        "id": "0/1",
+        "type": "Hologram",
+        "props": {
+          "depth": 3
+        }
+      },
+      {
+        "id": "0/2",
+        "type": "Text",
+        "props": {
+          "text": "後ろも描かれる"
+        }
+      }
+    ]
+  }
+}

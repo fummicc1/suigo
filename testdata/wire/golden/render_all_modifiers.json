@@ -1,0 +1,101 @@
+{
+  "type": "render",
+  "seq": 1,
+  "tree": {
+    "id": "0",
+    "type": "VStack",
+    "mods": [
+      {
+        "k": "spacing",
+        "v": 10
+      }
+    ],
+    "children": [
+      {
+        "id": "0/0",
+        "type": "Text",
+        "props": {
+          "text": "padding then background"
+        },
+        "mods": [
+          {
+            "k": "padding",
+            "v": 8
+          },
+          {
+            "k": "background",
+            "v": "gray"
+          }
+        ]
+      },
+      {
+        "id": "0/1",
+        "type": "Text",
+        "props": {
+          "text": "background then padding"
+        },
+        "mods": [
+          {
+            "k": "background",
+            "v": "gray"
+          },
+          {
+            "k": "padding",
+            "v": 8
+          }
+        ]
+      },
+      {
+        "id": "0/2",
+        "type": "Text",
+        "props": {
+          "text": "all"
+        },
+        "mods": [
+          {
+            "k": "padding",
+            "v": {
+              "top": 8,
+              "bottom": 4,
+              "leading": 12,
+              "trailing": 12
+            }
+          },
+          {
+            "k": "font",
+            "v": "headline"
+          },
+          {
+            "k": "foregroundColor",
+            "v": "#FF8800"
+          },
+          {
+            "k": "background",
+            "v": "clear"
+          },
+          {
+            "k": "frame",
+            "v": {
+              "width": 200,
+              "height": 44,
+              "maxWidth": "infinity",
+              "alignment": "leading"
+            }
+          },
+          {
+            "k": "cornerRadius",
+            "v": 12
+          },
+          {
+            "k": "disabled",
+            "v": true
+          },
+          {
+            "k": "hidden",
+            "v": false
+          }
+        ]
+      }
+    ]
+  }
+}

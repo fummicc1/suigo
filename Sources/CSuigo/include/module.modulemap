@@ -1,0 +1,4 @@
+module CSuigo {
+    header "suigo.h"
+    export *
+}

@@ -1,0 +1,46 @@
+{
+  "type": "render",
+  "seq": 1,
+  "tree": {
+    "id": "0",
+    "type": "VStack",
+    "mods": [
+      {
+        "k": "spacing",
+        "v": 12
+      }
+    ],
+    "children": [
+      {
+        "id": "0/0",
+        "type": "Text",
+        "props": {
+          "text": "0"
+        },
+        "mods": [
+          {
+            "k": "font",
+            "v": "largeTitle"
+          },
+          {
+            "k": "foregroundColor",
+            "v": "blue"
+          }
+        ]
+      },
+      {
+        "id": "0/1",
+        "type": "Button",
+        "props": {
+          "label": "Tap"
+        },
+        "mods": [
+          {
+            "k": "padding",
+            "v": 8
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+name: HostApp
+options:
+  bundleIdPrefix: dev.suigo.example
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  Suigo:
+    path: ../..
+targets:
+  SuigoCounter:
+    type: application
+    platform: iOS
+    sources: [HostApp]
+    dependencies:
+      - package: Suigo
+        product: SuigoEmbedded
+      # scripts/build-xcframework.sh ./examples/counter/embedded build で生成する
+      - framework: ../../build/Suigo.xcframework
+        embed: false
+    info:
+      path: HostApp/Info.plist
+      properties:
+        CFBundleName: SuigoCounter
+        CFBundleShortVersionString: "0.1"
+        CFBundleVersion: "1"
+        UILaunchScreen:
+          UIImageRespectsSafeAreaInsets: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.suigo.example.counter
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: NO
+  SuigoCounterUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [HostAppUITests]
+    dependencies:
+      - target: SuigoCounter
+    settings:
+      base:
+        TEST_TARGET_NAME: SuigoCounter
+        GENERATE_INFOPLIST_FILE: YES
