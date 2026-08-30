@@ -29,11 +29,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # 製品が 2 つあるため、テストは自動生成の Suigo-Package スキームに紐付く。
+      # ランナーに存在するシミュレータは変わるので名前を決め打ちせず simctl で探す。
+      # `shell: bash` は pipefail を有効にする。既定シェルではパイプ先の終了コードで
+      # 失敗が隠れ、初回 CI ではデスティネーション不在の失敗が緑になっていた。
       - name: swift unit tests (Suigo-Package; no Go archive needed)
+        shell: bash
         run: |
-          xcodebuild test -scheme Suigo-Package \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            | tail -30
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices[][] | select(.isAvailable and (.name | test("^iPhone")))][0].udid')
+          test -n "$UDID" && echo "simulator: $UDID"
+          xcodebuild test -scheme Suigo-Package -destination "id=$UDID" \
+            | tee xcodebuild.log | grep -E "Test run with|Suite|TEST (SUCCEEDED|FAILED)|error:" || true
+          grep -q "TEST SUCCEEDED" xcodebuild.log
+          grep -qE "Test run with [0-9]+ tests in [0-9]+ suites passed" xcodebuild.log
 
   # Release 成果物に dev トランスポートが混入していないことを機械的に確認する（AC-8 / RISK-4）。
   release-guard:
