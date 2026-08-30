@@ -34,16 +34,21 @@ struct PerformanceTests {
         }
     }
 
-    /// 固定時間ではなく「評価回数が floor 以上になり、その後 2 回連続で増えなくなる」まで待つ。
-    /// CI の遅いランナーでは 0.4 秒では描画が間に合わず、初回の CI でこの suite が一度落ちた
-    /// （当時はログにテスト名が出ず特定できなかった）。上限は 5 秒。
-    private func settle(_ runtime: SuigoRuntime, atLeast floor: Int) -> Int {
-        let deadline = Date().addingTimeInterval(5)
-        var last = -1, stable = 0
+    /// 固定時間ではなく「評価回数が floor 以上になり、その後 quiet 秒間増えなくなる」まで待つ。
+    /// CI ランナーでは初回描画のあとに全体をもう一度評価する遅延パスが走ることがあり
+    /// （同一 commit の再実行で 3 / 173 / 511 と揺れた）、0.2 秒の安定判定では拾えなかった。上限は 8 秒。
+    private func settle(_ runtime: SuigoRuntime, atLeast floor: Int, quiet: Double = 1.0) -> Int {
+        let deadline = Date().addingTimeInterval(8)
+        var last = -1, stableSince: Date? = nil
         while Date() < deadline {
             RunLoop.main.run(until: Date().addingTimeInterval(0.1))
             let now = SuigoDebug.bodyEvaluations(for: runtime)
-            if now >= floor && now == last { stable += 1; if stable >= 2 { return now } } else { stable = 0 }
+            if now >= floor && now == last {
+                if let t = stableSince, Date().timeIntervalSince(t) >= quiet { return now }
+                if stableSince == nil { stableSince = Date() }
+            } else {
+                stableSince = nil
+            }
             last = now
         }
         return SuigoDebug.bodyEvaluations(for: runtime)
@@ -65,14 +70,25 @@ struct PerformanceTests {
         let initial = settle(runtime, atLeast: 511)
         #expect(initial >= 511, "初回は全ノードが評価されるはず（計数器の妥当性）: \(initial)")
 
+        // ウォームアップ: 中身が同じフレームを 1 回流し、環境由来の遅延パスを吐き出させる。
         SuigoDebug.resetCounter(for: runtime)
-        runtime.handle(renderFrame(seq: 2, rows: 170, changeLast: true))
-        host.view.setNeedsLayout()
-        host.view.layoutIfNeeded()
-        let after = settle(runtime, atLeast: 1)
-        print("TP-004 bodies re-evaluated after 1-node change (511-node tree): \(after) (measured 3, limit 10)")
+        runtime.handle(renderFrame(seq: 2, rows: 170, changeLast: false))
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        let warm = settle(runtime, atLeast: 0)
+
+        // 1 か所変更を 3 回試行し、最小値で判定する。環境由来の一過性の再評価には強く、
+        // 本物の退化（ID 不安定・.id() の付けすぎ・Equatable の欠落）なら毎回高いので見逃さない。
+        var trials: [Int] = []
+        for i in 0..<3 {
+            SuigoDebug.resetCounter(for: runtime)
+            runtime.handle(renderFrame(seq: 3 + i, rows: 170, changeLast: i % 2 == 0))
+            host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+            trials.append(settle(runtime, atLeast: 1))
+        }
+        let after = trials.min() ?? -1
+        print("TP-004 bodies re-evaluated after 1-node change (511-node tree): min \(after) of \(trials), warm-up \(warm) (measured 3, limit 10)")
         #expect(after >= 1, "変更が反映されていない")
-        #expect(after <= 10, "1 か所変更で \(after) body が再評価された。ID 採番の不安定化か .id() の付けすぎを疑う")
+        #expect(after <= 10, "1 か所変更で最小でも \(after) body が再評価された。ID 採番の不安定化か .id() の付けすぎ、Equatable の欠落を疑う")
     }
 
     // 対照: 全ノード変更なら N に比例して増える（計数器が機能している証拠）
