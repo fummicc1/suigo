@@ -24,11 +24,12 @@ final class TodoUITests: XCTestCase {
     private var addButton: XCUIElement { app.buttons["追加"] }
 
     /// 日本語入力では 1 回目の return が変換確定になりうるため、キーボードが消えるまで最大 3 回押す。
-    private func submitAndDismissKeyboard() {
+    private func submitAndDismissKeyboard(_ element: XCUIElement? = nil) {
+        let target = element ?? field
         for _ in 0..<3 where app.keyboards.count > 0 {
             app.keyboards.buttons["return"].firstMatch.exists
                 ? app.keyboards.buttons["return"].firstMatch.tap()
-                : field.typeText("\n")
+                : target.typeText("\n")
             RunLoop.current.run(until: Date().addingTimeInterval(0.4))
         }
         XCTAssertEqual(app.keyboards.count, 0, "キーボードが閉じていること（行の存在確認の前提）")
@@ -132,5 +133,36 @@ final class TodoUITests: XCTestCase {
 
         submitAndDismissKeyboard()
         XCTAssertTrue(waitUntil(3) { self.addButton.isEnabled }, "submit で commit され、追加が有効になる")
+    }
+
+    /// TS-404: debounce ポリシーの TextField は return 無しで、入力が止まってから commit される。
+    /// 絞り込み欄（`CommitDebounce(300)`）に固有トークンを打ち、該当行だけが残ることで Go 到達を確かめる。
+    func testDebounceFilterCommitsWithoutSubmit() {
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        let token = "F\(Int.random(in: 1000...9999))"
+        let a = "牛乳-\(token)"
+        let b = "本-\(Int.random(in: 100...999))"
+        add(a)
+        add(b)
+        XCTAssertTrue(app.switches[a].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches[b].waitForExistence(timeout: 5))
+
+        let filter = app.textFields["絞り込み"]
+        XCTAssertTrue(filter.exists)
+        filter.tap()
+        filter.typeText(token)
+        // return は押さない。キーボードは閉じる必要があるが、debounce 欄では return は commit ではない。
+        submitAndDismissKeyboard(filter)
+
+        XCTAssertTrue(app.staticTexts["「\(token)」で 1 件"].waitForExistence(timeout: 5),
+                      "入力が止まってから debounce で commit され、Go が絞り込みを反映する")
+        XCTAssertTrue(app.switches[a].exists, "一致する行は残る")
+        XCTAssertFalse(app.switches[b].exists, "一致しない行は消える")
+
+        // 空に戻す → debounce で空文字が commit され、全行が戻る
+        filter.tap()
+        filter.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: token.count))
+        submitAndDismissKeyboard(filter)
+        XCTAssertTrue(waitUntil(5) { self.app.switches[b].exists }, "絞り込み解除も debounce で届く")
     }
 }

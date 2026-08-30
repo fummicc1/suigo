@@ -1,9 +1,14 @@
 // Package ui は TODO の画面定義。v0.1 で最も難しい 2 点——行の同一性（List + ForEach の明示 ID）と
 // 入力の確定（TextField のローカル下書き + コミット）——を通すためのサンプル。
+//
+// 入力欄は 2 つあり、コミット契機が違う。
+//   - 新しいタスク: submit（return で確定）
+//   - 絞り込み:     debounce 300ms（打つのを止めると勝手に確定。return は要らない）
 package ui
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/fummicc1/suigo/suigo"
 )
@@ -18,6 +23,7 @@ type Item struct {
 type Model struct {
 	Items  []Item
 	Draft  string
+	Filter string
 	NextID int
 }
 
@@ -32,8 +38,17 @@ func View(m Model, s *suigo.Store[Model]) suigo.Node {
 			done++
 		}
 	}
+	visible := m.Items
+	if m.Filter != "" {
+		visible = visible[:0:0]
+		for _, it := range m.Items {
+			if strings.Contains(it.Title, m.Filter) {
+				visible = append(visible, it)
+			}
+		}
+	}
 
-	return suigo.VStack(
+	children := []suigo.Node{
 		suigo.HStack(
 			suigo.TextField("新しいタスク", m.Draft, func(v string) {
 				s.Update(func(m *Model) { m.Draft = v })
@@ -50,10 +65,14 @@ func View(m Model, s *suigo.Store[Model]) suigo.Node {
 			}).Disabled(m.Draft == ""),
 		).Spacing(8),
 
+		suigo.TextField("絞り込み", m.Filter, func(v string) {
+			s.Update(func(m *Model) { m.Filter = v })
+		}).CommitOn(suigo.CommitDebounce(300)),
+
 		suigo.Divider(),
 
 		suigo.List(
-			suigo.ForEach(m.Items, func(it Item) string { return "todo-" + strconv.Itoa(it.ID) },
+			suigo.ForEach(visible, func(it Item) string { return "todo-" + strconv.Itoa(it.ID) },
 				func(it Item) suigo.Node {
 					return suigo.HStack(
 						suigo.Toggle(it.Title, it.Done, func(on bool) {
@@ -84,5 +103,13 @@ func View(m Model, s *suigo.Store[Model]) suigo.Node {
 		suigo.Text(strconv.Itoa(done)+" / "+strconv.Itoa(len(m.Items))+" 件完了").
 			Font(suigo.Caption).
 			ForegroundColor(suigo.Secondary),
-	).Spacing(12).Padding(16)
+	}
+	if m.Filter != "" {
+		children = append(children,
+			suigo.Text("「"+m.Filter+"」で "+strconv.Itoa(len(visible))+" 件").
+				Font(suigo.Caption).
+				ForegroundColor(suigo.Secondary))
+	}
+
+	return suigo.VStack(children...).Spacing(12).Padding(16)
 }

@@ -76,7 +76,7 @@ scripts/build-xcframework.sh ./examples/counter/embedded build
 
 Link `build/Suigo.xcframework` and the `SuigoEmbedded` SwiftPM product. The same `SuigoView.standard()` now talks to the Go runtime inside the app. Release builds contain no TCP code — verified by `scripts/check-release-symbols.sh`.
 
-See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo`.
+See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo` (List/ForEach identity, a submit-committed input and a debounce-committed filter).
 
 ## What is in v0.1
 

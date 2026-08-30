@@ -42,10 +42,18 @@ jobs:
           UDID=$(xcrun simctl list devices available -j \
             | jq -r '[.devices[][] | select(.isAvailable and (.name | test("^iPhone")))][0].udid')
           test -n "$UDID" && echo "simulator: $UDID"
+          # 失敗したテスト名（✘）と性能テストの実測値（TP-00x / control）は必ずログに出す。
           xcodebuild test -scheme Suigo-Package -destination "id=$UDID" \
-            | tee xcodebuild.log | grep -E "Test run with|Suite|TEST (SUCCEEDED|FAILED)|error:" || true
+            | tee xcodebuild.log \
+            | grep -E "✘|✔ Test run|Suite \"|TEST (SUCCEEDED|FAILED)|error:|Expectation failed|^TP-00|^control:" || true
           grep -q "TEST SUCCEEDED" xcodebuild.log
           grep -qE "Test run with [0-9]+ tests in [0-9]+ suites passed" xcodebuild.log
+      - name: upload xcodebuild.log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
 
   # Release 成果物に dev トランスポートが混入していないことを機械的に確認する（AC-8 / RISK-4）。
   release-guard:
