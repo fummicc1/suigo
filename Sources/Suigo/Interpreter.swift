@@ -6,13 +6,23 @@ import SwiftUI
 /// ノードツリーは深さが実行時に決まる再帰構造で、`some View` の静的型が無限に入れ子になる。
 /// そのため型消去は避けられないが、生成箇所をここ 1 か所に閉じることで
 /// SwiftUI から見た位置の同一性を安定させる（design §2.2 の手 1）。
-struct SuigoNodeView: View {
+struct SuigoNodeView: View, Equatable {
     let node: Node
     let runtime: SuigoRuntime
 
+    // 明示的な == を持ち、子の生成箇所で .equatable() を付ける。
+    // SwiftUI は非 Equatable な view の格納プロパティを発見的に比較するが、CI ランナー上で
+    // その比較が効かず 1 か所変更が 173 body になる run が観測された（同じイメージ・同じ
+    // シミュレータで 3 になる run もあり、非決定的）。EquatableView なら == が直接呼ばれる。
+    // View は MainActor 隔離なので、Equatable の要件は nonisolated で満たす。
+    // 比較するのは Sendable な Node の値と、ランタイムの参照同一性だけなので安全である。
+    nonisolated static func == (a: Self, b: Self) -> Bool {
+        a.runtime === b.runtime && a.node == b.node
+    }
+
     var body: some View {
         #if DEBUG
-        SuigoDebug.bodyEvaluations += 1
+        SuigoDebug.record(runtime)
         #endif
         return interpret(node, runtime: runtime)
     }
@@ -21,11 +31,14 @@ struct SuigoNodeView: View {
 #if DEBUG
 /// 性能回帰テスト用の計数器（TP-004）。ID 採番の不安定化や `.id()` の付けすぎは動作を壊さず
 /// 再評価回数だけを静かに増やすため、回数そのものを CI で固定する。
+/// 並列に走る他のテストの描画を数えないよう、ランタイム単位で数える。
 /// SwiftUI の body は MainActor で評価されるので、ここも MainActor に隔離する。
 @MainActor
 public enum SuigoDebug {
-    public static var bodyEvaluations = 0
-    public static func resetCounters() { bodyEvaluations = 0 }
+    private static var counts: [ObjectIdentifier: Int] = [:]
+    static func record(_ runtime: SuigoRuntime) { counts[ObjectIdentifier(runtime), default: 0] += 1 }
+    public static func bodyEvaluations(for runtime: SuigoRuntime) -> Int { counts[ObjectIdentifier(runtime)] ?? 0 }
+    public static func resetCounter(for runtime: SuigoRuntime) { counts[ObjectIdentifier(runtime)] = 0 }
 }
 #endif
 
@@ -70,7 +83,7 @@ func interpret(_ node: Node, runtime: SuigoRuntime) -> AnyView {
         // 行にだけ .id() を付ける（FR-4.4 / design §2.2 の手 3）。全ノードに付けると
         // SwiftUI が不要な teardown を行い、ForEach の ID 差分による絞り込みも効かなくなる。
         view = AnyView(ForEach(node.children, id: \.id) { child in
-            SuigoNodeView(node: child, runtime: runtime).id(child.id)
+            SuigoNodeView(node: child, runtime: runtime).equatable().id(child.id)
         })
     case "TextField":
         view = AnyView(TextFieldNodeView(node: node, runtime: runtime))
@@ -97,13 +110,12 @@ func interpret(_ node: Node, runtime: SuigoRuntime) -> AnyView {
     return AnyView(applyModifiers(node.mods, to: view, nodeID: node.id))
 }
 
-/// 子を `ForEach(id:)` で列挙する（design §2.2 の手 2）。
-/// PRE-3 の実測で、511 ノードのツリーを毎回差し替えても 1 か所変更なら body 評価は 3 個で済んだ。
-/// SwiftUI は ID 差分だけでこれを達成しており、追加の Equatable 適合は不要だった。
+/// 子を `ForEach(id:)` で列挙し、`.equatable()` で == による比較を強制する（design §2.2 の手 2）。
+/// 511 ノードのツリーを毎回差し替えても 1 か所変更なら body 評価は 3 個で済む（TP-004 が固定）。
 @MainActor
 private func children(of node: Node, runtime: SuigoRuntime) -> some View {
     ForEach(node.children, id: \.id) { child in
-        SuigoNodeView(node: child, runtime: runtime)
+        SuigoNodeView(node: child, runtime: runtime).equatable()
     }
 }
 
