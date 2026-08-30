@@ -33,7 +33,12 @@
 { "type": "snapshot_result", "error": "..." }                 // 失敗時
 ```
 
-- `seq` は 1 から始まる単調増加。**ホストは自分が見た最大 `seq` 未満のフレームを捨てる**（FR-4.5）
+- `seq` は 1 から始まる単調増加。**ホストは自分が見た最大 `seq` 以下のフレームを捨てる**（FR-4.5）
+- **`seq` はプロセスではなく接続の通し番号である。** ホットリロードで Go の子プロセスが入れ替わっても、
+  ホストから見た接続は 1 本のままなので、番号は続きから振らなければならない。
+  子は起動時に `mount.startSeq` を受け取り、最初の render を `startSeq + 1` にする。
+  これを守らないと再起動のたびに `seq` が 1 に戻り、**ホストが正しい描画を「古い」として捨てて画面が更新されない**
+  （実際に起きたバグ。`cmd/suigo` の `TestSeqIsMonotonicAcrossReload` が守っている）
 - `code` は機械可読な識別子。テストはメッセージ本文ではなく `code` で判定する
 
 **`code` の一覧（v0.1）**
@@ -50,7 +55,7 @@
 ### 2.2 ホスト → Go
 
 ```jsonc
-{ "type": "mount", "restore": { /* 任意 */ } }   // restore は dev のみ・省略可
+{ "type": "mount", "restore": { /* 任意 */ }, "startSeq": 41 }  // restore / startSeq は dev のみ・省略可
 { "type": "event", "nodeID": "0/2", "kind": "tap", "payload": { "t": "none" } }
 { "type": "env", "colorScheme": "dark",
   "safeArea": { "top": 59, "bottom": 34, "leading": 0, "trailing": 0 },

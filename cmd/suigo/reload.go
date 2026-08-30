@@ -111,8 +111,11 @@ func (d *devServer) reload(ctx context.Context, changed string) {
 	snap := d.snapshot(ctx)
 	tSnap := time.Since(t0) - tBuild
 
+	// 子を止める前に、ホストへ送った最後の seq を控える。
+	startSeq := d.lastRenderSeq()
+
 	d.stopChild()
-	if err := d.start(ctx, bin, snap); err != nil {
+	if err := d.start(ctx, bin, snap, startSeq); err != nil {
 		log.Printf("suigo dev: restart failed: %v", err)
 		return
 	}

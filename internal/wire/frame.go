@@ -51,6 +51,10 @@ type SnapshotResultFrame struct {
 type MountFrame struct {
 	Type    string `json:"type"`
 	Restore []byte `json:"restore,omitempty"`
+	// StartSeq は最初の render に使う seq の 1 つ手前。dev の proxy が再起動のたびに設定する。
+	// seq はプロセスではなく**接続**の通し番号である。子は再起動で 1 から振り直すため、
+	// これを渡さないとホストが「古いフレーム」として捨ててしまう（FR-4.5）。
+	StartSeq uint64 `json:"startSeq,omitempty"`
 }
 
 type EventFrame struct {

@@ -130,6 +130,26 @@ func TestEventRoundTripOverStdio(t *testing.T) {
 	}
 }
 
+// mount の startSeq を尊重する。proxy が再起動をまたいで seq を連続させるための土台。
+func TestStartSeqIsHonored(t *testing.T) {
+	h, cancel := newHost(t, &testApp{store: suigo.NewStore(counter{})})
+	defer cancel()
+	h.send(wire.MountFrame{Type: "mount", StartSeq: 41})
+	f := h.recv()
+	if f["seq"] != 42.0 {
+		t.Errorf("seq = %v, want 42 (startSeq 41 + 1)", f["seq"])
+	}
+}
+
+func TestStartSeqZeroStartsAtOne(t *testing.T) {
+	h, cancel := newHost(t, &testApp{store: suigo.NewStore(counter{})})
+	defer cancel()
+	h.send(wire.MountFrame{Type: "mount"})
+	if f := h.recv(); f["seq"] != 1.0 {
+		t.Errorf("seq = %v, want 1", f["seq"])
+	}
+}
+
 func TestRestoreOnMount(t *testing.T) {
 	h, cancel := newHost(t, &testApp{store: suigo.NewStore(counter{})})
 	defer cancel()

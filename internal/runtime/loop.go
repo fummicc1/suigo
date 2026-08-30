@@ -57,6 +57,12 @@ func New(app App, enc wire.Encoder) *Loop {
 	}
 }
 
+// SetStartSeq は最初の render の seq を n+1 にする。Run より前に呼ぶこと。
+//
+// ホットリロードで子プロセスが入れ替わっても、ホストから見た接続は 1 本のままである。
+// seq が 1 に戻るとホストは古いフレームとして捨てるため、proxy が前回の続きを渡す。
+func (l *Loop) SetStartSeq(n uint64) { l.seq = n }
+
 // Dispatch はイベントをループへ渡す。任意の goroutine から呼べ、すぐに戻る。
 func (l *Loop) Dispatch(nodeID, kind string, p suigo.Payload) {
 	select {

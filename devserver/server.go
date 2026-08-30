@@ -47,8 +47,8 @@ func serve(ctx context.Context, app suigo.App, in io.Reader, out io.Writer) erro
 		return wire.WriteFrame(out, b)
 	}
 
-	// mount が来るまで描画を始めない。restore を先に適用するため。
-	mounted := make(chan []byte, 1)
+	// mount が来るまで描画を始めない。restore と startSeq を先に適用するため。
+	mounted := make(chan wire.MountFrame, 1)
 
 	go func() {
 		defer cancel()
@@ -66,7 +66,7 @@ func serve(ctx context.Context, app suigo.App, in io.Reader, out io.Writer) erro
 				var f wire.MountFrame
 				if err := enc.Decode(b, &f); err == nil {
 					select {
-					case mounted <- f.Restore:
+					case mounted <- f:
 					default:
 					}
 				}
@@ -93,19 +93,23 @@ func serve(ctx context.Context, app suigo.App, in io.Reader, out io.Writer) erro
 		}
 	}()
 
-	var restore []byte
+	var mount wire.MountFrame
 	select {
-	case restore = <-mounted:
+	case mount = <-mounted:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 
+	// seq は接続の通し番号なので、再起動しても proxy が指定する続きから振る。
+	// これを無視すると 1 に戻り、ホストが古いフレームとして捨てる（FR-4.5）。
+	loop.SetStartSeq(mount.StartSeq)
+
 	// Restore は Run より前に済ませる。Run は開始直後に初回描画を出すため、
 	// 後から復元すると「ゼロ値の描画 → 復元後の描画」の順になり、その隙間に
 	// 次の snapshot 要求が来ると復元前の値を返してしまう（実測で状態喪失が再現した）。
-	if len(restore) > 0 && !bytes.Equal(restore, []byte("null")) {
+	if len(mount.Restore) > 0 && !bytes.Equal(mount.Restore, []byte("null")) {
 		// 失敗してもゼロ値で続行する（FR-6.4）。warning は loop が出す。
-		_ = app.Restore(restore)
+		_ = app.Restore(mount.Restore)
 	}
 
 	go loop.Run(ctx)

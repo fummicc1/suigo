@@ -44,8 +44,11 @@ type child struct {
 	done  chan struct{}
 }
 
+// addr は待ち受けアドレス。127.0.0.1 のみで、LAN へは開かない（design §6.1）。
+func (d *devServer) addr() string { return fmt.Sprintf("127.0.0.1:%d", d.port) }
+
 func (d *devServer) run(ctx context.Context) error {
-	addr := fmt.Sprintf("127.0.0.1:%d", d.port)
+	addr := d.addr()
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", addr, err)
@@ -172,7 +175,27 @@ func (d *devServer) restart(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return d.start(ctx, bin, nil)
+	return d.start(ctx, bin, nil, 0)
+}
+
+// lastRenderSeq は直近にホストへ送った render の seq を返す。
+// 子は再起動で seq を 1 から振り直すが、ホストから見た接続は 1 本なので、
+// 番号が戻ると古いフレームとして捨てられる。次の子にはこの続きから振らせる。
+// 復号するのはリロード 1 回につき 1 フレームだけで、毎フレームの負担にはならない。
+func (d *devServer) lastRenderSeq() uint64 {
+	d.mu.Lock()
+	b := d.lastFrame
+	d.mu.Unlock()
+	if len(b) == 0 {
+		return 0
+	}
+	var f struct {
+		Seq uint64 `json:"seq"`
+	}
+	if err := (wire.JSON{}).Decode(b, &f); err != nil {
+		return 0
+	}
+	return f.Seq
 }
 
 // build は固定の出力パスへビルドし、起動用に別名へコピーして返す。
@@ -216,7 +239,7 @@ func copyFile(src, dst string) error {
 	return err
 }
 
-func (d *devServer) start(ctx context.Context, bin string, restore []byte) error {
+func (d *devServer) start(ctx context.Context, bin string, restore []byte, startSeq uint64) error {
 	cmd := exec.CommandContext(ctx, bin)
 	cmd.Stderr = os.Stderr
 	stdin, err := cmd.StdinPipe()
@@ -238,7 +261,7 @@ func (d *devServer) start(ctx context.Context, bin string, restore []byte) error
 
 	go d.pumpChildToHost(c, stdout)
 
-	mount, _ := (wire.JSON{}).Encode(wire.MountFrame{Type: "mount", Restore: restore})
+	mount, _ := (wire.JSON{}).Encode(wire.MountFrame{Type: "mount", Restore: restore, StartSeq: startSeq})
 	if err := wire.WriteFrame(stdin, mount); err != nil {
 		return fmt.Errorf("send mount: %w", err)
 	}

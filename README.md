@@ -63,10 +63,16 @@ func View(m Model, s *suigo.Store[Model]) suigo.Node {
 ### 2. Hot reload during development
 
 ```sh
-go run ./cmd/suigo dev -port 7373 ./examples/counter/dev
+# terminal 1 — supervises the Go process and proxies to the simulator
+go run ./cmd/suigo dev -port 7391 ./examples/counter/dev
+
+# terminal 2 — build, install and launch the sample against it
+scripts/run-example.sh 7391
 ```
 
-In your host app, put `SuigoView.standard()` in the `WindowGroup` and set `SUIGO_DEV_PORT=7373` in the Xcode scheme's environment (Debug only). Save a Go file; the simulator updates and keeps its state.
+Now edit `examples/counter/ui/counter.go` and save. The simulator updates without relaunching and keeps its counter value.
+
+In your own app, put `SuigoView.standard()` in the `WindowGroup` and set `SUIGO_DEV_PORT` in the Xcode scheme's environment (Debug only).
 
 ### 3. Ship it
 
@@ -74,7 +80,7 @@ In your host app, put `SuigoView.standard()` in the `WindowGroup` and set `SUIGO
 scripts/build-xcframework.sh ./examples/counter/embedded build
 ```
 
-Link `build/Suigo.xcframework` and the `SuigoEmbedded` SwiftPM product. The same `SuigoView.standard()` now talks to the Go runtime inside the app. Release builds contain no TCP code — verified by `scripts/check-release-symbols.sh`.
+Link `build/Suigo.xcframework` and the `SuigoEmbedded` SwiftPM product. The same `SuigoView.standard()` now talks to the Go runtime inside the app — `scripts/run-example.sh` with no port argument launches the sample this way. Release builds contain no TCP code, verified by `scripts/check-release-symbols.sh`.
 
 See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo` (List/ForEach identity, a submit-committed input and a debounce-committed filter).
 
@@ -118,6 +124,7 @@ See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo` 
 - **`suigo dev` has no authentication.** It listens on `127.0.0.1` only and is compiled out of Release. Do not expose it on a LAN; a device-side hot reload will need auth first.
 - **Hot-reload state hand-off is JSON.** Unexported fields are dropped; a renamed field falls back to its zero value with a warning overlay.
 - **Simulator only for hot reload** in v0.1.
+- **Building inside iCloud Drive breaks code signing** (`resource fork, Finder information, or similar detritus not allowed`). Keep DerivedData outside the synced folder; `scripts/run-example.sh` already does.
 - **The simulator slice of the xcframework is arm64 only** (Apple Silicon). Build with a specific simulator destination or exclude x86_64; an Intel slice can be added to `scripts/build-xcframework.sh` if needed.
 
 ## Compared to
