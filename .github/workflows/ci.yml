@@ -21,6 +21,9 @@ jobs:
         run: go test -race -coverprofile=coverage.out ./...
       - name: go test devserver (suigodev tag)
         run: go test -race -tags suigodev ./devserver/
+      # ベンチは計測ではなく「壊れていない」ことの確認として 1 回だけ回す（TP-006 の予算テストは go test 側）。
+      - name: go bench smoke
+        run: go test -run xxx -bench . -benchtime=1x ./...
       - run: go tool cover -func=coverage.out | tail -1
 
   # パッケージは iOS 専用なので `swift test` は使えず、シミュレータ向けの xcodebuild で回す。

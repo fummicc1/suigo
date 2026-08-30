@@ -4,7 +4,13 @@ import Foundation
 ///
 /// `props` は `(type, key)` で型が決まる閉じた集合なので、辞書として舐めずに
 /// ノード型ごとの取り出し関数を通す（`text`, `label` など）。
-public struct Node: Sendable {
+///
+/// `Equatable` は性能に直結する。SwiftUI は view の格納プロパティを比較して body の再評価を
+/// 省くが、比較できない型は「変わったかもしれない」と扱う。`Node` が Equatable でないと、
+/// 子を持つ行は親が再評価されるたびに全部再評価される（TP-004 で 511 ノードのツリーの
+/// 1 か所変更が 3 body ではなく 172 body になった）。view 側の `.equatable()` は不要だが、
+/// 型側の適合は必要である。
+public struct Node: Sendable, Equatable {
     public let id: String
     public let type: String
     public let props: [String: PropValue]
@@ -22,7 +28,7 @@ public struct Node: Sendable {
 }
 
 /// 修飾子。配列の順序に意味がある。
-public struct Modifier: Sendable {
+public struct Modifier: Sendable, Equatable {
     public let k: String
     public let v: PropValue
 }

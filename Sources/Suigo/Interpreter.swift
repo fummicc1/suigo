@@ -11,9 +11,23 @@ struct SuigoNodeView: View {
     let runtime: SuigoRuntime
 
     var body: some View {
-        interpret(node, runtime: runtime)
+        #if DEBUG
+        SuigoDebug.bodyEvaluations += 1
+        #endif
+        return interpret(node, runtime: runtime)
     }
 }
+
+#if DEBUG
+/// 性能回帰テスト用の計数器（TP-004）。ID 採番の不安定化や `.id()` の付けすぎは動作を壊さず
+/// 再評価回数だけを静かに増やすため、回数そのものを CI で固定する。
+/// SwiftUI の body は MainActor で評価されるので、ここも MainActor に隔離する。
+@MainActor
+public enum SuigoDebug {
+    public static var bodyEvaluations = 0
+    public static func resetCounters() { bodyEvaluations = 0 }
+}
+#endif
 
 /// ノード型 → SwiftUI View の switch。トランスポートには依存しない（FR-4.1）。
 ///

@@ -33,7 +33,7 @@ The second thing suigo gives you is a development loop that SwiftUI Previews can
 Both transports carry the **same JSON frames**. The interpreter does not know which one it is on.
 
 - **Go** owns the model. `View(model) Node` is a pure function; `Store.Update` queues a mutation and the render loop applies it before the next frame (a single goroutine touches the model, so there is no data race by construction).
-- **Wire** is JSON. The full tree is sent on every render; SwiftUI's own `ForEach` identity diffing does the rest (measured: a one-node change in a 511-node tree re-evaluates 3 view bodies).
+- **Wire** is JSON. The full tree is sent on every render; SwiftUI's own `ForEach` identity diffing plus `Equatable` node values do the rest (measured and guarded by a regression test: a one-node change in a 511-node tree re-evaluates 3 view bodies).
 - **Swift** is one `switch` from node type to SwiftUI view. Unknown node types render as `EmptyView` and log; unknown modifiers are ignored. Adding a node type never crashes an older host.
 - **Boundary** (release) is bytes only: Go mallocs a frame, Swift copies and frees it; Swift → Go is copied during the call. No function pointers cross the boundary, so Swift 6 strict concurrency has nothing to complain about.
 
@@ -87,7 +87,7 @@ See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo`.
 | State | `Store[M]` with queued mutations; snapshot/restore across hot reloads via JSON |
 | Transports | `suigo dev` (TCP, Debug only, localhost only) and embedded (C ABI, c-archive) |
 | Tooling | `suigo dev` with fsnotify, rebuild, state hand-off, build-failure overlay, `--metrics`; xcframework build script; release symbol guard |
-| Tests | Go: 80+ unit tests under `-race` (runs on Linux, no macOS needed); Swift: 40 unit tests against shared fixtures; XCUITests for both samples over both transports |
+| Tests | Go: 80+ unit tests under `-race` (runs on Linux, no macOS needed); Swift: 43 unit tests against shared fixtures incl. performance regression (body re-evaluation count, decode budget); XCUITests for both samples over both transports |
 
 ## Measured numbers (iPhone 17 Pro Max simulator, iOS 26.5, Apple Silicon)
 
