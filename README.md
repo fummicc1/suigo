@@ -129,17 +129,22 @@ See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo` 
 
 ## Compared to
 
-| | Native SwiftUI output | Go authoring | Hot reload with real logic | Notes |
+Three questions separate these: is the **UI written in Go**, does it **render as native SwiftUI** (rather than pixels the framework draws itself), and can you **hot reload against real state** (rather than mock data in a preview)?
+
+| | UI written in Go | Renders as native SwiftUI | Hot reload against real state | Notes |
 |---|---|---|---|---|
-| **suigo** | yes | yes | yes | 14 nodes, prototype |
-| Fyne / Gio | no (own renderer) | yes | – | mature, cross-platform |
-| Flutter + gomobile/FFI | no (own renderer) | logic only | yes | mature |
-| Kotlin Multiplatform + Compose | no | no | – | no Go |
-| Govinci | no iOS renderer yet (UIKit planned) | yes | – | JSON tree, Android only |
-| Go core + hand-written SwiftUI (the Tailscale way) | yes | logic only | Previews (mock data) | what suigo tries to replace |
-| Plain SwiftUI | yes | no | Previews (mock data) | often the right answer |
+| **suigo** | yes | yes | yes | 14 node types, prototype |
+| Fyne / Gio | yes | no — draws its own widgets | – | mature, cross-platform |
+| `gomobile build` (x/mobile/app) | yes | no — draws its own widgets | – | the Go wiki calls it "more of a curio" |
+| Govinci | yes | no iOS renderer yet (UIKit planned) | – | JSON tree, Android only |
+| Flutter + Go via FFI or `gomobile bind` | no — logic only | no — draws its own widgets | yes | mature |
+| Go core + hand-written SwiftUI (the Tailscale way) | no — logic only | yes | previews only, on mock data | what suigo tries to replace |
+| Kotlin Multiplatform + Compose | no — Go can't be reused | no | – | |
+| Plain SwiftUI | no | yes | previews only, on mock data | often the right answer |
 
 If your UI is simple and you don't have a Go core to reuse, plain SwiftUI is the better tool.
+
+**A note on gomobile.** suigo does not use it. The name covers two different things: `gomobile bind` generates Swift/Java bindings so native code can call into Go — the UI stays in Swift; `gomobile build` produces an all-Go app that draws its own widgets. suigo wants neither. It builds the Go side with `go build -buildmode=c-archive` and ships a hand-written C header, so the only thing crossing the boundary is a byte buffer — which is what keeps the door open for a Compose interpreter later. Incidentally, `golang/go#57651` was reported against `gomobile bind`; whether it reproduces with a plain c-archive is untested here.
 
 ## Reference implementations this builds on
 
