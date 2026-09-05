@@ -35,14 +35,16 @@ final class TodoUITests: XCTestCase {
         XCTAssertEqual(app.keyboards.count, 0, "キーボードが閉じていること（行の存在確認の前提）")
     }
 
-    /// 前のテストで commit した Draft が Go から届いて残っていることがあるので、入力前に空にする。
+    /// 前のテストで commit した値が Go から届いて残っていることがあるので、入力前に空にする。
     /// 空のときは placeholder がそのまま value に入るため、それも除外する。
-    private func clearField() {
-        field.tap()
-        if let v = field.value as? String, !v.isEmpty, v != "新しいタスク" {
-            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: v.count))
+    private func clear(_ element: XCUIElement, placeholder: String) {
+        element.tap()
+        if let v = element.value as? String, !v.isEmpty, v != placeholder {
+            element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: v.count))
         }
     }
+
+    private func clearField() { clear(field, placeholder: "新しいタスク") }
 
     private func add(_ title: String) {
         clearField()
@@ -164,5 +166,26 @@ final class TodoUITests: XCTestCase {
         filter.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: token.count))
         submitAndDismissKeyboard(filter)
         XCTAssertTrue(waitUntil(5) { self.app.switches[b].exists }, "絞り込み解除も debounce で届く")
+    }
+
+    /// TS-403: blur ポリシーの TextField は、フォーカスを失ったときに commit される。
+    /// リスト名欄（`CommitOnBlur`）に固有トークンを打ち、待っても見出しが変わらず（debounce ではない）、
+    /// 別の欄をタップして初めて見出しが Go の値で描き直される（submit を待たない）ことで確かめる。
+    func testBlurTitleCommitsOnFocusLoss() {
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        let title = app.textFields["リスト名"]
+        XCTAssertTrue(title.exists)
+        let token = "T\(Int.random(in: 1000...9999))"
+
+        clear(title, placeholder: "リスト名")
+        title.typeText(token)
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+        XCTAssertFalse(app.staticTexts[token].exists, "フォーカス中は時間が経っても commit されない")
+
+        let filter = app.textFields["絞り込み"]
+        filter.tap()
+        XCTAssertTrue(app.staticTexts[token].waitForExistence(timeout: 5),
+                      "別の欄へ移ってフォーカスを失うと commit され、見出しに Go の値が現れる")
+        submitAndDismissKeyboard(filter)
     }
 }
