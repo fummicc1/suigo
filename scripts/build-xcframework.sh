@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Go を -buildmode=c-archive で iOS device / simulator 向けにビルドし、xcframework にまとめる。
+# Go を -buildmode=c-archive で iOS device / simulator（arm64 + x86_64）向けにビルドし、xcframework にまとめる。
 #
 #   scripts/build-xcframework.sh <利用者の main パッケージ> [出力ディレクトリ]
 #   例: scripts/build-xcframework.sh ./examples/counter/embedded build
@@ -15,13 +15,13 @@ MIN_IOS="${MIN_IOS:-17.0}"
 HEADER_DIR="$(cd "$(dirname "$0")/.." && pwd)/Sources/CSuigo/include"
 
 build_slice() {
-  local sdk="$1" target="$2" dir="$3"
+  local sdk="$1" goarch="$2" target="$3" dir="$4"
   local sysroot clang
   sysroot="$(xcrun --sdk "$sdk" --show-sdk-path)"
   clang="$(xcrun --sdk "$sdk" -f clang)"
   mkdir -p "$dir"
   echo "==> $sdk ($target)"
-  CGO_ENABLED=1 GOOS=ios GOARCH=arm64 \
+  CGO_ENABLED=1 GOOS=ios GOARCH="$goarch" \
     CC="$clang -target $target -isysroot $sysroot" \
     CGO_CFLAGS="-target $target -isysroot $sysroot" \
     CGO_LDFLAGS="-target $target -isysroot $sysroot" \
@@ -32,13 +32,21 @@ build_slice() {
   rm -f "$dir/libsuigo.h"
 }
 
-build_slice iphonesimulator "arm64-apple-ios${MIN_IOS}-simulator" "$OUT/sim-arm64"
-build_slice iphoneos        "arm64-apple-ios${MIN_IOS}"           "$OUT/ios-arm64"
+build_slice iphonesimulator arm64 "arm64-apple-ios${MIN_IOS}-simulator"  "$OUT/sim-arm64"
+build_slice iphonesimulator amd64 "x86_64-apple-ios${MIN_IOS}-simulator" "$OUT/sim-x86_64"
+build_slice iphoneos        arm64 "arm64-apple-ios${MIN_IOS}"            "$OUT/ios-arm64"
+
+# create-xcframework は同じプラットフォームのライブラリを 2 本受け取れないので、
+# シミュレータの 2 アーキテクチャは lipo で 1 本の universal archive にしてから渡す。
+echo "==> lipo (simulator arm64 + x86_64)"
+mkdir -p "$OUT/sim"
+lipo -create "$OUT/sim-arm64/libsuigo.a" "$OUT/sim-x86_64/libsuigo.a" -output "$OUT/sim/libsuigo.a"
+lipo -info "$OUT/sim/libsuigo.a"
 
 echo "==> xcframework"
 rm -rf "$OUT/Suigo.xcframework"
 xcodebuild -create-xcframework \
-  -library "$OUT/sim-arm64/libsuigo.a" \
+  -library "$OUT/sim/libsuigo.a" \
   -library "$OUT/ios-arm64/libsuigo.a" \
   -output "$OUT/Suigo.xcframework"
 
