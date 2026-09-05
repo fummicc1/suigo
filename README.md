@@ -80,9 +80,9 @@ In your own app, put `SuigoView.standard()` in the `WindowGroup` and set `SUIGO_
 scripts/build-xcframework.sh ./examples/counter/embedded build
 ```
 
-Link `build/Suigo.xcframework` and the `SuigoEmbedded` SwiftPM product. The same `SuigoView.standard()` now talks to the Go runtime inside the app — `scripts/run-example.sh` with no port argument launches the sample this way. Release builds contain no TCP code, verified by `scripts/check-release-symbols.sh`.
+Link `build/Suigo.xcframework` and the `SuigoEmbedded` SwiftPM product. The same `SuigoView.standard()` now talks to the Go runtime inside the app — `scripts/run-example.sh` with no port argument launches the sample this way. The xcframework carries a device slice (arm64) and a universal simulator slice (arm64 + x86_64; the latter runs under Rosetta). Release builds contain no TCP code, verified by `scripts/check-release-symbols.sh`.
 
-See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo` (List/ForEach identity, a submit-committed input and a debounce-committed filter).
+See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo` (List/ForEach identity, and one TextField per commit policy: a blur-committed title, a submit-committed input and a debounce-committed filter).
 
 ## What is in v0.1
 
@@ -125,7 +125,6 @@ See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo` 
 - **Hot-reload state hand-off is JSON.** Unexported fields are dropped; a renamed field falls back to its zero value with a warning overlay.
 - **Simulator only for hot reload** in v0.1.
 - **Building inside iCloud Drive breaks code signing** (`resource fork, Finder information, or similar detritus not allowed`). Keep DerivedData outside the synced folder; `scripts/run-example.sh` already does.
-- **The simulator slice of the xcframework is arm64 only** (Apple Silicon). Build with a specific simulator destination or exclude x86_64; an Intel slice can be added to `scripts/build-xcframework.sh` if needed.
 
 ## Compared to
 
