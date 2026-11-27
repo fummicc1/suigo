@@ -2,10 +2,10 @@
 
 **Write your iOS UI in Go. Render it as real SwiftUI.**
 
-suigo is an in-process, server-driven UI framework: Go builds a view tree, a thin Swift interpreter turns it into native SwiftUI views, and events flow back to Go. The Go side runs either as a separate process during development (**hot reload in under a second, state preserved**) or linked into the app as a C archive for release.
+suigo is an in-process, server-driven UI framework: Go builds a view tree, a thin Swift interpreter turns it into native SwiftUI views, and events flow back to Go. The Go side runs either as a separate process during development (**hot reload in about a second, state preserved**) or linked into the app as a C archive for release.
 
 > **Status: v0.1 — a working, measured prototype built as a learning project.**
-> Counter and TODO samples run on the iOS Simulator over both transports and, checked by hand at commit `b1d2647`, on a physical iPhone 15 Pro (iOS 27) over the embedded transport; hot reload is verified end-to-end on the simulator.
+> Counter and TODO samples run on the iOS Simulator over both transports and on a physical iPhone 15 Pro (iOS 27) over the embedded transport; hot reload is verified end-to-end on the simulator.
 > This is not a production framework. Read *Scope* and *Known limitations* before depending on it.
 
 ## Why this exists
@@ -119,7 +119,7 @@ See `examples/counter` (xcodegen `project.yml` + XCUITests) and `examples/todo` 
 
 ## Known limitations
 
-- **`golang/go#57651`** (open since 2023-01): iOS apps containing Go ≥ 1.18 can drop to ~5 fps **while a physical device is attached to Xcode** (not when detached, not with Instruments running). This affects development, not shipped apps. suigo's dev transport keeps Go out of the app process entirely during development, so the condition does not arise there. With the c-archive setup used here it has **not been reproduced so far**: in one manual run of both samples on an iPhone 15 Pro (iOS 27) at commit `b1d2647`, launched from Xcode, a 60 fps screen recording showed 46–54 changed frames per second during toggle and delete animations in the TODO sample, nowhere near 5 fps. That is a single run and the attached state was not logged, so read it as "not observed", not "cannot happen".
+- **`golang/go#57651`** (open since 2023-01): iOS apps containing Go ≥ 1.18 can drop to ~5 fps **while a physical device is attached to Xcode** (not when detached, not with Instruments running). This affects development, not shipped apps. suigo's dev transport keeps Go out of the app process entirely during development, so the condition does not arise there. With the c-archive setup used here it has **not been reproduced so far**: in one manual run of both samples on an iPhone 15 Pro (iOS 27), launched from Xcode, a 60 fps screen recording showed 46–54 changed frames per second during toggle and delete animations in the TODO sample, nowhere near 5 fps. That is a single run, and whether the device was attached to Xcode at the time was not logged, so read it as "not observed", not "cannot happen".
 - **Practical limit ≈ 300 nodes.** Beyond that, a full-tree change exceeds the frame budget. Split screens or wait for v0.2.
 - **`suigo dev` has no authentication.** It listens on `127.0.0.1` only and is compiled out of Release. Do not expose it on a LAN; a device-side hot reload will need auth first.
 - **Hot-reload state hand-off is JSON.** Unexported fields are dropped; a renamed field falls back to its zero value with a warning overlay.
